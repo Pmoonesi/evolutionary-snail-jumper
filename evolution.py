@@ -29,18 +29,18 @@ class Evolution:
         :param num_players: number of players that we return
         """
         # TODO (Implement top-k algorithm here)
-        for i in range(num_players):
-            max = -float('inf')
-            max_index = -1
-            for j in range(i, len(players)):
-                player = players[j]
-                if player.fitness > max:
-                    max = player.fitness
-                    max_index = j
-            temp = players[i]
-            players[i] = players[max_index]
-            players[max_index] = temp
-        return players[: num_players]
+        # for i in range(num_players):
+        #     max = -float('inf')
+        #     max_index = -1
+        #     for j in range(i, len(players)):
+        #         player = players[j]
+        #         if player.fitness > max:
+        #             max = player.fitness
+        #             max_index = j
+        #     temp = players[i]
+        #     players[i] = players[max_index]
+        #     players[max_index] = temp
+        # return players[: num_players]
 
         ## create chance array
         # prefix_fitness = [players[0].fitness]
@@ -70,6 +70,30 @@ class Evolution:
         #     selected_players.append(players[index])
         #     random_var += interval
         # return selected_players
+
+        # TODO (Additional: Implement Q-tournament here)
+        ## select pressure calculations
+        max_fitness = -float('inf')
+        total_fitness = 0
+        for player in players:
+            if player.fitness > max_fitness:
+                max_fitness = player.fitness
+            total_fitness += player.fitness
+        SP = max_fitness / total_fitness
+
+        ## select next gen
+        selected_players = []
+        Q = int(SP * num_players - 1) + 1
+        for _ in range(num_players):
+            max_index = -1
+            max_fitness = -float('inf')
+            for __ in range(Q):
+                index = int(np.random.uniform() * num_players)
+                if players[index].fitness > max_fitness:
+                    max_fitness = players[index].fitness
+                    max_index = index
+            selected_players.append(players[max_index])
+        return selected_players
 
         # TODO (Additional: Learning curve)
         return players[: num_players]
