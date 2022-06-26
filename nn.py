@@ -31,7 +31,7 @@ class NeuralNetwork:
         """
         # TODO (Implement activation function here)
         ## Sigmoid
-        return 1 / np.exp(-x)
+        return 1 / (1 + np.exp(-x))
 
         ## ReLU
         return np.where(x < 0, 0, x)
