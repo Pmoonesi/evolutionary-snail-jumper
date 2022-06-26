@@ -3,7 +3,7 @@ import random
 import pygame
 from variables import global_variables
 from nn import NeuralNetwork
-
+import numpy as np
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, game_mode):
@@ -31,12 +31,52 @@ class Player(pygame.sprite.Sprite):
         self.player_gravity = 'left'
         self.gravity = 10
         self.game_mode = game_mode
+        self.first_time = True
 
         if self.game_mode == "Neuroevolution":
             self.fitness = 0  # Initial fitness
 
-            layer_sizes = [3, 10, 2]  # TODO (Design your architecture here by changing the values)
+            layer_sizes = [4, 10, 1]  # TODO (Design your architecture here by changing the values)
             self.nn = NeuralNetwork(layer_sizes)
+
+    def filter_past_obstacles(self, obstacles, player_y):
+        filtered = filter(lambda x: x['y'] < player_y, obstacles)
+        return list(filtered)
+
+    def get_obstacles_divided(self, obstacles):
+        ## left
+        left_list = list(filter(lambda i: i['x'] <= 201, obstacles))
+        ## middle
+        middle_list = list(filter(lambda i: i['x'] > 201 and i['x'] <= 402, obstacles))
+        ## right
+        right_list = list(filter(lambda i: i['x'] > 402, obstacles))
+        
+        return [left_list, middle_list, right_list]
+
+    def closest_obstacle(self, obstacles):
+        closest = (obstacles[0]['y'] - (-100)) / (640 - (-100)) if len(obstacles) > 0 else 0
+        return closest
+
+    def obstacle_count(self, obstacles, total_obstacles):
+        count = len(obstacles) / len(total_obstacles)
+        return count
+
+    def player_nx(self, player_x):
+        return (player_x - 177) / 233
+
+    def obstacle_variance(self, obstacles):
+        ## maximum variance where half of obstacles are at -100 and the other half at 640 -> mean = 270
+        max_var = (370) ** 2
+        ## real variance
+        sum = 0
+        for o in obstacles:
+            sum += o['y']
+        mean = sum / len(obstacles)
+        sum = 0
+        for o in obstacles:
+            sum += (o['y'] - mean) ** 2
+        var = sum / len(obstacles)
+        return var / max_var
 
     def think(self, screen_width, screen_height, obstacles, player_x, player_y):
         """
@@ -52,12 +92,23 @@ class Player(pygame.sprite.Sprite):
         :param player_y: 'y' position of the player
         """
         # TODO (change player's gravity here by calling self.change_gravity)
+        [left_obs, middle_obs, right_obs] = self.get_obstacles_divided(obstacles)
+        
+        ## closes obstacles
+        c_l = self.closest_obstacle(left_obs)
+        c_m = self.closest_obstacle(middle_obs)
+        c_r = self.closest_obstacle(right_obs)
 
-        # This is a test code that changes the gravity based on a random number. Remove it before your implementation.
-        if random.randint(0, 2):
-            self.change_gravity('left')
-        else:
+        ## player x
+        p_x = self.player_nx(player_x)
+
+        input = np.array([c_l, c_m, c_r, p_x]).reshape(4, 1)
+        output = self.nn.forward(input)
+
+        if output[0] > 0.5:
             self.change_gravity('right')
+        else:
+            self.change_gravity('left')
 
     def change_gravity(self, new_gravity):
         """
