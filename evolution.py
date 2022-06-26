@@ -6,6 +6,7 @@ import numpy as np
 class Evolution:
     def __init__(self):
         self.game_mode = "Neuroevolution"
+        self.sigma = 1
 
     def binary_find(self, array, x, start, end):
         if end <= start:
@@ -20,70 +21,50 @@ class Evolution:
         else:
             return self.binary_find(array, x, start, mid - 1)
 
-    def next_population_selection(self, players, num_players):
-        """
-        Gets list of previous and current players (μ + λ) and returns num_players number of players based on their
-        fitness value.
+    def get_top_k(self, players, k):
+        for i in range(k):
+            max = -float('inf')
+            max_index = -1
+            for j in range(i, len(players)):
+                player = players[j]
+                if player.fitness > max:
+                    max = player.fitness
+                    max_index = j
+            temp = players[i]
+            players[i] = players[max_index]
+            players[max_index] = temp
+        return players[: k]
 
-        :param players: list of players in the previous generation
-        :param num_players: number of players that we return
-        """
-        # TODO (Implement top-k algorithm here)
-        # for i in range(num_players):
-        #     max = -float('inf')
-        #     max_index = -1
-        #     for j in range(i, len(players)):
-        #         player = players[j]
-        #         if player.fitness > max:
-        #             max = player.fitness
-        #             max_index = j
-        #     temp = players[i]
-        #     players[i] = players[max_index]
-        #     players[max_index] = temp
-        # return players[: num_players]
+    def get_fitness_prefix_sum(self, players):
+        prefix_fitness = [players[0].fitness]
+        for i in range(1, len(players)):
+            new_fitness_sum = prefix_fitness[-1] + players[i].fitness
+            prefix_fitness.append(new_fitness_sum)
+        total_fitness = prefix_fitness[-1]
+        return [f / total_fitness for f in prefix_fitness]
 
-        ## create chance array
-        # prefix_fitness = [players[0].fitness]
-        # for i in range(1, len(players)):
-        #     new_fitness_sum = prefix_fitness[-1] + players[i].fitness
-        #     prefix_fitness.append(new_fitness_sum)
-        # total_fitness = prefix_fitness[-1]
-        # prefix_fitness = [f / total_fitness for f in prefix_fitness]
-
-        # TODO (Additional: Implement roulette wheel here)
-        ## generate num_players uniform random numbers and select next generation
-        # selected_players = []
-        # for i in range(num_players):
-        #     random_number = np.random.uniform()
-        #     index = self.binary_find(prefix_fitness, random_number, 0, len(prefix_fitness))
-        #     selected_players.append(players[index])
-        # return selected_players
-
-        # TODO (Additional: Implement SUS here)
-        # selected_players = []
-        # interval = 1 / num_players
-        # random_var = np.random.uniform(0, interval)
-        # index = 0
-        # while random_var < 1:
-        #     while random_var > prefix_fitness[index]:
-        #         index += 1
-        #     selected_players.append(players[index])
-        #     random_var += interval
-        # return selected_players
-
-        # TODO (Additional: Implement Q-tournament here)
-        ## select pressure calculations
-        max_fitness = -float('inf')
-        total_fitness = 0
-        for player in players:
-            if player.fitness > max_fitness:
-                max_fitness = player.fitness
-            total_fitness += player.fitness
-        SP = max_fitness / total_fitness
-
-        ## select next gen
+    def get_roulette_wheel(self, players, num_players, prefix_fitness):
         selected_players = []
-        Q = int(SP * num_players - 1) + 1
+        for i in range(num_players):
+            random_number = np.random.uniform()
+            index = self.binary_find(prefix_fitness, random_number, 0, len(prefix_fitness))
+            selected_players.append(players[index])
+        return selected_players
+
+    def get_sus(self, players, num_players, prefix_fitness):
+        selected_players = []
+        interval = 1 / num_players
+        random_var = np.random.uniform(0, interval)
+        index = 0
+        while random_var < 1:
+            while random_var > prefix_fitness[index]:
+                index += 1
+            selected_players.append(players[index])
+            random_var += interval
+        return selected_players
+
+    def get_q_tournament(self, players, num_players, Q):
+        selected_players = []
         for _ in range(num_players):
             max_index = -1
             max_fitness = -float('inf')
@@ -94,6 +75,45 @@ class Evolution:
                     max_index = index
             selected_players.append(players[max_index])
         return selected_players
+
+    def get_selection_pressure(self, players):
+        max_fitness = -float('inf')
+        total_fitness = 0
+        for player in players:
+            if player.fitness > max_fitness:
+                max_fitness = player.fitness
+            total_fitness += player.fitness
+        return max_fitness / total_fitness
+
+    def next_population_selection(self, players, num_players):
+        """
+        Gets list of previous and current players (μ + λ) and returns num_players number of players based on their
+        fitness value.
+
+        :param players: list of players in the previous generation
+        :param num_players: number of players that we return
+        """
+        # TODO (Implement top-k algorithm here)
+        return self.get_top_k(players, num_players)
+
+        # TODO (Additional: Implement roulette wheel here)
+        ## create chance array
+        # prefix_fitness = self.get_fitness_prefix_sum(players)
+        ## generate num_players uniform random numbers and select next generation
+        # return get_roulette_wheel(players, num_players, prefix_fitness)
+
+        # TODO (Additional: Implement SUS here)
+        ## create chance array
+        # prefix_fitness = self.get_fitness_prefix_sum(players)
+        # return get_sus(players, num_players, prefix_fitness)
+
+        # TODO (Additional: Implement Q-tournament here)
+        # ## select pressure calculations
+        # SP = self.get_selection_pressure(players)
+        # Q = int(SP * num_players - 1) + 1
+
+        # ## select next gen
+        # return self.get_q_tournament(players, num_players, Q)
 
         # TODO (Additional: Learning curve)
         return players[: num_players]
@@ -111,7 +131,65 @@ class Evolution:
             return [Player(self.game_mode) for _ in range(num_players)]
         else:
             # TODO ( Parent selection and child generation )
-            new_players = prev_players  # DELETE THIS AFTER YOUR IMPLEMENTATION
+            ## select parents
+
+            # TODO select all of the generation as parents
+            parents1 = prev_players
+            parents2 = prev_players[-1::-1]
+
+            # TODO select parents with roulette wheel
+            # prefix_fitness = self.get_fitness_prefix_sum(prev_players)
+            # parents1 = prev_players
+            # parents2 = self.get_roulette_wheel(prev_players, num_players, prefix_fitness)
+
+            # TODO select paretns with SUS
+            # prefix_fitness = self.get_fitness_prefix_sum(prev_players)
+            # parents1 = prev_players
+            # parents2 = self.get_sus(prev_players, num_players, prefix_fitness)
+
+            # TODO select parents with Q-tournament
+            # SP = self.get_selection_pressure(prev_players)
+            # Q = int(SP * num_players - 1) + 1
+            # parents1 = prev_players
+            # parents2 = self.get_q_tournament(prev_players, num_players, Q)
+
+            ## crossover
+            Pc = 0.4
+            children = []
+            alpha = 0.3
+            assert len(parents1) == len(parents2)
+            for i in range(len(parents1)):
+                random_var = np.random.random()
+                parent1, parent2 = parents1[i], parents2[i]
+                child1 = self.clone_player(parent1)
+                child2 = self.clone_player(parent2)
+                if random_var <= Pc:
+                    for l in range(len(parent1.nn.weights)):
+                        weight1 = (1 - alpha) * parent1.nn.weights[l] + alpha * parent2.nn.weights[l]
+                        weight2 = alpha * parent1.nn.weights[l] + (1 - alpha) * parent2.nn.weights[l]
+                        bias1 = (1 - alpha) * parent1.nn.biases[l] + alpha * parent2.nn.biases[l]
+                        bias2 = alpha * parent1.nn.biases[l] + (1 - alpha) * parent2.nn.biases[l]
+                        child1.nn.weights[l], child1.nn.biases[l] = weight1, bias1
+                        child2.nn.weights[l], child2.nn.biases[l] = weight2, bias2
+                children.append(child1)
+                children.append(child2)
+
+            ## mutation
+            ## update sigma
+            taw = 0.1
+            self.sigma = self.sigma * np.exp(taw * np.random.normal(0, 1))
+
+            ## mutate
+            for i in range(len(children)):
+                child = children[i]
+                for l in range(len(child.nn.weights)):
+                    new_weight = child.nn.weights[l] + self.sigma * np.random.normal(0, 1, child.nn.weights[l].shape)
+                    child.nn.weights[l] = new_weight
+                    new_bias = child.nn.biases[l] + self.sigma * np.random.normal(0, 1, child.nn.biases[l].shape)
+                    child.nn.biases[l] = new_bias
+
+            # new_players = prev_players  # DELETE THIS AFTER YOUR IMPLEMENTATION
+            new_players = prev_players + children
             return new_players
 
     def clone_player(self, player):
