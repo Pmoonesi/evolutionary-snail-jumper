@@ -85,6 +85,25 @@ class Evolution:
             total_fitness += player.fitness
         return max_fitness / total_fitness
 
+    def get_statistics(self, players):
+        min_fitness = float('inf')
+        max_fitness = -float('inf')
+        sum_fitness = 0
+        for player in players:
+            f = player.fitness
+            sum_fitness += f
+            if f < min_fitness:
+                min_fitness = f
+            if f > max_fitness: 
+                max_fitness = f
+        avg_fitness = sum_fitness / len(players)
+        return (min_fitness, avg_fitness, max_fitness) 
+
+    def save_to_file(self, min, avg, max):
+        with open('statistics.txt', 'a+') as f:
+            output = "{}-{:.2f}-{}\n".format(min, avg, max)
+            f.write(output)
+
     def next_population_selection(self, players, num_players):
         """
         Gets list of previous and current players (μ + λ) and returns num_players number of players based on their
@@ -94,18 +113,18 @@ class Evolution:
         :param num_players: number of players that we return
         """
         # TODO (Implement top-k algorithm here)
-        return self.get_top_k(players, num_players)
+        # next_gen_players = self.get_top_k(players, num_players)
 
         # TODO (Additional: Implement roulette wheel here)
-        ## create chance array
+        # # create chance array
         # prefix_fitness = self.get_fitness_prefix_sum(players)
-        ## generate num_players uniform random numbers and select next generation
-        # return get_roulette_wheel(players, num_players, prefix_fitness)
+        # # generate num_players uniform random numbers and select next generation
+        # next_gen_players = self.get_roulette_wheel(players, num_players, prefix_fitness)
 
         # TODO (Additional: Implement SUS here)
         ## create chance array
-        # prefix_fitness = self.get_fitness_prefix_sum(players)
-        # return get_sus(players, num_players, prefix_fitness)
+        prefix_fitness = self.get_fitness_prefix_sum(players)
+        next_gen_players = self.get_sus(players, num_players, prefix_fitness)
 
         # TODO (Additional: Implement Q-tournament here)
         # ## select pressure calculations
@@ -113,10 +132,12 @@ class Evolution:
         # Q = int(SP * num_players - 1) + 1
 
         # ## select next gen
-        # return self.get_q_tournament(players, num_players, Q)
+        # next_gen_players = self.get_q_tournament(players, num_players, Q)
 
         # TODO (Additional: Learning curve)
-        return players[: num_players]
+        min, avg, max = self.get_statistics(next_gen_players)
+        self.save_to_file(min, avg, max)
+        return next_gen_players
 
     def generate_new_population(self, num_players, prev_players=None):
         """
@@ -134,8 +155,8 @@ class Evolution:
             ## select parents
 
             # TODO select all of the generation as parents
-            parents1 = prev_players
-            parents2 = prev_players[-1::-1]
+            # parents1 = prev_players
+            # parents2 = prev_players[-1::-1]
 
             # TODO select parents with roulette wheel
             # prefix_fitness = self.get_fitness_prefix_sum(prev_players)
@@ -148,10 +169,10 @@ class Evolution:
             # parents2 = self.get_sus(prev_players, num_players, prefix_fitness)
 
             # TODO select parents with Q-tournament
-            # SP = self.get_selection_pressure(prev_players)
-            # Q = int(SP * num_players - 1) + 1
-            # parents1 = prev_players
-            # parents2 = self.get_q_tournament(prev_players, num_players, Q)
+            SP = self.get_selection_pressure(prev_players)
+            Q = int(SP * num_players - 1) + 1
+            parents1 = prev_players
+            parents2 = self.get_q_tournament(prev_players, num_players, Q)
 
             ## crossover
             Pc = 0.4
